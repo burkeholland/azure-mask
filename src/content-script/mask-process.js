@@ -1,17 +1,22 @@
-const isMaskedKeyName = 'isMasked';
-const maskEnabledClassName = 'az-mask-enabled';
+const isMaskedKeyName = "isMasked";
+const maskEnabledClassName = "az-mask-enabled";
 const sensitiveDataRegex = /^([a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12})$/;
 /* ** Original regex prior to 2019-04-18 **
  * const sensitiveDataRegex = /^\s*([a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12})|((([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,})))\s*$/;
  *
  */
-const sensitiveDataClassName = 'azdev-sensitive';
-const blurCss = 'filter: blur(10px); pointer-events: none;';
-const tagNamesToMatch = ['DIV']; // uppercase
+const sensitiveDataClassName = "azdev-sensitive";
+const blurCss = "filter: blur(10px); pointer-events: none;";
+const tagNamesToMatch = ["DIV"]; // uppercase
+
+// Holds a reference to the img element that is the user's avatar.
+// Is set later on in setAvatar.
+let avatar = null;
+let originalSrc = "";
 
 // add CSS style to blur
-const style = document.createElement('style');
-style.appendChild(document.createTextNode(''));
+const style = document.createElement("style");
+style.appendChild(document.createTextNode(""));
 document.head.appendChild(style);
 
 style.sheet.insertRule(
@@ -33,29 +38,36 @@ style.sheet.insertRule(
   `.${maskEnabledClassName} .fxs-mecontrol-flyout { ${blurCss} }`
 ); // user account menu
 
-getStoredMaskedStatus(isMasked => {
-  isMasked
-    ? document.body.classList.add(maskEnabledClassName)
-    : document.body.classList.remove(maskEnabledClassName);
+getStoredMaskedStatus((isMasked) => {
+  if (isMasked) {
+    document.body.classList.add(maskEnabledClassName);
+    avatar.src =
+      "https://portal.azure.com/Content/static/MsPortalImpl/AvatarMenu/AvatarMenu_defaultAvatarSmall.png";
+  } else {
+    document.body.classList.remove(maskEnabledClassName);
+    avatar.src = originalSrc;
+  }
 });
 
 // add class to elements already on the screen
 Array.from(document.querySelectorAll(tagNamesToMatch.join()))
-  .filter(e => shouldCheckContent(e) && sensitiveDataRegex.test(e.textContent))
-  .forEach(e => e.classList.add(sensitiveDataClassName));
+  .filter(
+    (e) => shouldCheckContent(e) && sensitiveDataRegex.test(e.textContent)
+  )
+  .forEach((e) => e.classList.add(sensitiveDataClassName));
 
 // add class to elements that are added to DOM later
-const observer = new MutationObserver(mutations => {
+const observer = new MutationObserver((mutations) => {
   mutations
     .filter(
-      m =>
+      (m) =>
         shouldCheckContent(m.target, m.type) &&
         sensitiveDataRegex.test(m.target.textContent.trim())
     )
-    .forEach(m => {
-      const node = m.type === 'characterData' ? m.target.parentNode : m.target;
+    .forEach((m) => {
+      const node = m.type === "characterData" ? m.target.parentNode : m.target;
       if (node.classList) {
-        node.classList.add('azdev-sensitive');
+        node.classList.add("azdev-sensitive");
       }
     });
 });
@@ -63,21 +75,25 @@ const config = {
   attributes: false,
   characterData: true,
   childList: true,
-  subtree: true
+  subtree: true,
 };
 observer.observe(document.body, config);
 
 function shouldCheckContent(target, mutationType) {
   return (
-    mutationType === 'characterData' ||
-    (target && tagNamesToMatch.some(tn => tn === target.tagName))
+    mutationType === "characterData" ||
+    (target && tagNamesToMatch.some((tn) => tn === target.tagName))
   );
 }
 
 function getStoredMaskedStatus(callback) {
-  chrome.storage.local.get(isMaskedKeyName, items => {
+  chrome.storage.local.get(isMaskedKeyName, (items) => {
+    // initialize avatar reference and store existing image src
+    avatar = document.body.querySelector(".fxs-avatarmenu-tenant-image");
+    originalSrc = avatar.src;
+
     const { isMasked } = items;
-    if (typeof isMasked !== 'boolean') {
+    if (typeof isMasked !== "boolean") {
       // default to true
       chrome.storage.local.set({ [isMaskedKeyName]: true }, () =>
         callback(true)

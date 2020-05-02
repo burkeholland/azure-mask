@@ -20,7 +20,9 @@
         "*://functions.azure.com/*",
         "*://portal.azure.gov/*"
       ],
-      "js": ["/content-script/mask-process.js"],
+      "js": [
+        "/content-script/mask-process.js"
+      ],
       "run_at": "document_idle",
       "all_frames": true,
       "match_about_blank": true
